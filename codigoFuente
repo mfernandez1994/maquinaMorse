@@ -1,0 +1,168 @@
+String voz;
+SoftwareSerial BT (3,4);
+int led_salida = 12;
+boolean sos; /* señal internacional de socorro activada / desactivada */
+boolean errorTransmision;
+void setup() {
+  Serial.begin(9600);  /*Inicializamos la comunicaciòn serial*/
+  BT.begin(9600); /*Inicializamos la comunicaciòn bluetooth*/
+  pinMode(led_salida, OUTPUT);  /*Definimos el led de salida , como salida*/
+  pinMode(3, INPUT); /*Definimos como entrada el nuevo pin rx del lado del Arduino (debe ir al tx del Bluetooth) */
+  pinMode(4, OUTPUT); /* " " " " " " " salida " " " "  " " tx " " " " " " " " " " " (debe ir al rx del Bluetooth) */
+  pinMode(8, INPUT_PULLUP); /*Lo definimos como entrada y ponemos en alto la resistencia de pull-up interna de la placa , porque es el pin de entrada del botòn SOS*/
+  pinMode(7, INPUT_PULLUP); /* " " " " " " "  " " " " " " " " " " " " " ""  " " " " " " " " " " " " " " " " " " " " " " , porque es el botòn para indicar error de transmisiòn */
+  digitalWrite(led_salida, LOW); /*Ponemos en baja tensiòn el led de salidad , para no correr el riesgo de que se prenda , si no se desea */
+}
+
+void loop() {
+  Serial.print(digitalRead(7));
+  if (errorTransmision == false){
+    senalDeEmergenciaActivadaONo();
+  }
+  if (sos == false){
+    errorDeTransmision();
+  }
+  
+  if ((sos == false) && (errorTransmision == false)){
+    lecturaBluetooth();
+    if (voz.length() > 0) {
+      for (int i=0 ; i<voz.length() ; i++){
+        Serial.print(voz.charAt(i));
+        delay(100);
+        if (voz.charAt(i) != ' '){
+          aMorse(voz.charAt(i));
+          delay(3000);
+        }
+        else {
+          delay(6000);
+        }
+      }    
+      voz="";
+    }
+  }
+  else {
+    if (sos == true){
+      senalDeEmergencia();
+    }
+    else {
+      if (errorTransmision == true){
+        senalDeError();
+      }
+    }
+    delay(9000);
+  }
+}
+
+/*Cuando la lìnea rx del bluetooth (del lado del Arduino) , està disponible , lee datos que esta tiene y los transforma en una cadena de texto*/
+boolean senalDeEmergenciaActivadaONo(){
+  if (digitalRead(8) == LOW){
+    sos = false;
+  }
+  else {
+    if (digitalRead(8) == HIGH){
+      sos = true;
+    }
+  }
+}
+
+boolean errorDeTransmision(){
+  if(digitalRead(7) == LOW){
+    errorTransmision = false;
+  }
+  else {
+    if(digitalRead(7) == HIGH){
+      errorTransmision = true;
+    }
+  }
+}
+void lecturaBluetooth(){
+  boolean condicion = true;
+  while(BT.available() && condicion) {
+      delay(10);
+      char c= BT.read();
+      if(c=='#'){
+        condicion = false;
+      }
+      voz += c;
+  }
+}
+
+/*Mètedo que recibe un char , genera la secuencia morse asociada a èl y llama a los mètodos de punto y raya*/
+void aMorse(char i){  
+
+  String stringUnicode = "aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ0123456789.,:/-()=+*@?¿!";
+String carMorse[] = {".-",".-","-...","-...",
+"-.-.","-.-.","-..","-..",".",".","..-.","..-.","--.","--.",
+"....","....","..","..",".---",".---","-.-","-.-",".-..",".-..",
+"--","--","-.","-.","---","---",".--.",".--.","--.-","--.-",
+".-.",".-.","...","...","-","-","..-","..-","...-","...-",
+".--",".--","-..-","-..-","-.--","-.--","--..","--..","-----",
+".----","..---","...--","....-",".....","-....","--...","---..",
+"----.",".-.-.-","--..--","---...","-..-.","-....-",
+"-.--.","-.--.-","-...-",".-.-.",".-..-.",".--.-.","..--..","..--..","-.-.--"};
+  String charMorse ="";
+  int indice = 0;
+  boolean condicion = true;
+  while (condicion && (indice < 86)){
+    if (i == stringUnicode.charAt(indice)){
+      charMorse = carMorse[indice];
+      condicion = false;
+    }
+    else {
+      indice +=1;
+    }
+  }
+  Serial.print(charMorse);
+  for (int i=0 ; i< charMorse.length(); i++){
+    if(charMorse.charAt(i) == '.'){
+      punto();
+      delay(1000);
+    }
+    else {
+      if(charMorse.charAt(i) == '-'){
+        raya();
+        delay(1000);
+      }
+    }
+  }
+}
+
+void senalDeEmergencia(){
+  punto();
+  delay(1000);
+  punto();
+  delay(1000);
+  punto();
+  delay(1000);
+  raya();
+  delay(1000);
+  raya();
+  delay(1000);
+  raya();
+  delay(1000);
+  punto();
+  delay(1000);
+  punto();
+  delay(1000);
+  punto();
+}
+void senalDeError(){
+  for(int i=1;i<=5;i++){
+    punto();
+    delay(1000);
+  }
+}
+
+/* Mètodo que genera los puntos Morse*/
+void punto(){
+  digitalWrite(led_salida, HIGH);
+  delay(1000);
+  digitalWrite(led_salida, LOW);
+}
+
+/*Mètodo que genera las rayas Morse*/
+void raya(){
+  digitalWrite(led_salida, HIGH);
+  delay(3000);
+  digitalWrite(led_salida, LOW);
+}

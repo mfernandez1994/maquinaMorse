@@ -15,7 +15,6 @@ void setup() {
 }
 
 void loop() {
-  Serial.print(digitalRead(7));
   if (errorTransmision == false){
     senalDeEmergenciaActivadaONo();
   }
@@ -27,8 +26,6 @@ void loop() {
     lecturaBluetooth();
     if (voz.length() > 0) {
       for (int i=0 ; i<voz.length() ; i++){
-        Serial.print(voz.charAt(i));
-        delay(100);
         if (voz.charAt(i) != ' '){
           aMorse(voz.charAt(i));
           delay(3000);
